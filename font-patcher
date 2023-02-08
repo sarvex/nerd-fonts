@@ -769,13 +769,13 @@ class font_patcher:
             0xe0ca: {'align': 'r', 'valign': 'c', 'stretch': 'xy2', 'params': {'overlap': 0.01}},
 
             # Hexagons
-            0xe0cc: {'align': 'l', 'valign': 'c', 'stretch': 'xy', 'params': {'overlap': 0.02}},
-            0xe0cd: {'align': 'l', 'valign': 'c', 'stretch': 'xy', 'params': {}},
+            0xe0cc: {'align': 'l', 'valign': 'c', 'stretch': 'pa2', 'params': {'overlap': 0.02}},
+            0xe0cd: {'align': 'l', 'valign': 'c', 'stretch': 'pa2', 'params': {}},
 
             # Legos
-            0xe0ce: {'align': 'l', 'valign': 'c', 'stretch': 'xy', 'params': {}},
-            0xe0cf: {'align': 'c', 'valign': 'c', 'stretch': 'xy', 'params': {}},
-            0xe0d1: {'align': 'l', 'valign': 'c', 'stretch': 'xy', 'params': {'overlap': 0.02}},
+            0xe0ce: {'align': 'l', 'valign': 'c', 'stretch': 'pa2', 'params': {}},
+            0xe0cf: {'align': 'c', 'valign': 'c', 'stretch': 'pa2', 'params': {}},
+            0xe0d1: {'align': 'l', 'valign': 'c', 'stretch': 'pa2', 'params': {'overlap': 0.02}},
 
             # Top and bottom trapezoid
             0xe0d2: {'align': 'l', 'valign': 'c', 'stretch': 'xy', 'params': {'overlap': 0.02, 'xy-ratio': 0.7}},
@@ -1077,7 +1077,7 @@ class font_patcher:
 
         # For monospaced fonts all chars need to be maximum 'one' space wide
         # other fonts allows double width glyphs for 'pa' or if requested with '2'
-        if self.args.single or (stretch != 'pa' and '2' not in stretch):
+        if self.args.single or ('pa' not in stretch and '2' not in stretch):
             relative_width = 1.0
         else:
             relative_width = 2.0
@@ -1089,10 +1089,10 @@ class font_patcher:
         target_height = self.font_dim['height']
         scale_ratio_y = target_height / sym_dim['height']
 
-        if stretch == 'pa':
+        if 'pa' in stretch:
             # We want to preserve x/y aspect ratio, so find biggest scale factor that allows symbol to fit
             scale_ratio_x = min(scale_ratio_x, scale_ratio_y)
-            if not self.args.single:
+            if not self.args.single and '2' not in stretch:
                 # non monospaced fonts just scale down on 'pa', not up
                 scale_ratio_x = min(scale_ratio_x, 1.0)
             scale_ratio_y = scale_ratio_x
@@ -1142,6 +1142,10 @@ class font_patcher:
             sym_attr = attributes.get(sym_glyph.unicode)
             if sym_attr is None:
                 sym_attr = attributes['default']
+
+            if self.args.single:
+                # Do not allow 'pa2' scaling
+                sym_attr['stretch'] = sym_attr['stretch'].replace('pa2', 'xy')
 
             if self.font_extrawide:
                 # Do not allow 'xy2' scaling
