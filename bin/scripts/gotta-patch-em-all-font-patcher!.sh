@@ -25,12 +25,6 @@ res1=$(date +%s)
 repo_root_dir=$(dirname $(dirname ${sd})) # two levels up (i.e. ../../)
 # Set source and target directories
 like_pattern='.*\.\(otf\|ttf\|sfd\)'
-complete_variations_per_family=4
-font_typefaces_count=0
-font_families_count=0
-complete_variation_count=0
-total_variation_count=0
-total_count=0
 last_parent_dir=""
 unpatched_parent_dir="src/unpatched-fonts"
 patched_parent_dir="patched-fonts"
@@ -248,17 +242,6 @@ function patch_font {
     post_process=""
   fi
 
-  # shellcheck disable=SC2154
-  # we know the '$config_has_powerline' is from the sourced file
-  if [ "$config_has_powerline" -gt 0 ]
-  then
-    powerline=""
-    combinations=$(printf "./font-patcher ${f##*/} %s\\n" {' --use-single-width-glyphs',}{' --fontawesome',}{' --octicons',}{' --fontlogos',}{' --pomicons',}{' --powerlineextra',}{' --fontawesomeextension',}{' --powersymbols',}{' --weather',}{' --material',})
-  else
-    powerline="--powerline"
-    combinations=$(printf "./font-patcher ${f##*/} %s\\n" {' --powerline',}{' --use-single-width-glyphs',}{' --fontawesome',}{' --octicons',}{' --fontlogos',}{' --pomicons',}{' --powerlineextra',}{' --fontawesomeextension',}{' --powersymbols',}{' --weather',}{' --material',})
-  fi
-
   cd "$repo_root_dir" || {
     echo >&2 "# Could not find project parent directory"
     exit 3
@@ -289,6 +272,7 @@ function patch_font {
   { OUT=$(fontforge -quiet -script ${PWD}/font-patcher "$f" -q --variable $powerline $post_process -c --no-progressbars \
                     --outputdir "${patched_font_dir}complete/" $config_patch_flags ${NERDFONTS} 2>&1 1>&3 3>&- ); } 3>&1
   if [ $? -ne 0 ]; then printf "$OUT\nPatcher run aborted!\n\n"; fi
+
   # wait for this group of background processes to finish to avoid forking too many processes
   # that can add up quickly with the number of combinations
   #wait
@@ -318,7 +302,6 @@ function generate_info {
   if [ "$config_parent_dir_name" == "unpatched-fonts" ]
   then
     is_unpatched_fonts_root=1
-    font_typefaces_count=$((font_typefaces_count+1))
   fi
 
   # source the font config file if exists:
@@ -336,19 +319,6 @@ function generate_info {
     # shellcheck source=/dev/null
     source "$(find_font_root $config_parent_dir)/config.cfg"
   fi
-
-  if [ "$config_has_powerline" -gt 0 ]
-  then
-    powerline=""
-    combinations=$(printf "./font-patcher ${f##*/} %s\\n" {' --use-single-width-glyphs',}{' --fontawesome',}{' --octicons',}{' --fontlogos',}{' --pomicons',}{' --powerlineextra',}{' --fontawesomeextension',}{' --powersymbols',}{' --weather',}{' --material',})
-  else
-    powerline="--powerline"
-    combinations=$(printf "./font-patcher ${f##*/} %s\\n" {' --powerline',}{' --use-single-width-glyphs',}{' --fontawesome',}{' --octicons',}{' --fontlogos',}{' --pomicons',}{' --powerlineextra',}{' --fontawesomeextension',}{' --powersymbols',}{' --weather',}{' --material',})
-  fi
-
-  font_families_count=$((font_families_count+1))
-  complete_variation_count=$((complete_variation_count+complete_variations_per_family))
-  combination_count=$(printf "%s" "$combinations" | wc -l)
 
   # generate the readmes:
 
@@ -370,9 +340,6 @@ function generate_info {
   copy_license "$(find_font_root $config_dir)" "$patched_font_dir"
 
   last_parent_dir=$config_parent_dir
-  total_variation_count=$((total_variation_count+combination_count))
-  total_count=$((total_count+complete_variations_per_family+combination_count))
-
 }
 
 
@@ -466,7 +433,6 @@ then
     # for now set a 'wait' for each X set of processes:
     if [[ $(((i + 1) % max_parallel_process)) == 0 ]];
     then
-      echo "$LINE_PREFIX Complete Variation Count after max parallel process is  $complete_variation_count"
       wait
     fi
   done
@@ -483,28 +449,3 @@ do
   font_file=${path##*/}
   generate_info "$path" "$font_file" 2>/dev/null
 done
-
-font_typefaces_count=$(find "${sd}/../../${patched_parent_dir}/"* -maxdepth 0 -type d | wc -l)
-
-res2=$(date +%s)
-dt=$(echo "$res2 - $res1" | bc)
-dd=$(echo "$dt/86400" | bc)
-dt2=$(echo "$dt-86400*$dd" | bc)
-dh=$(echo "$dt2/3600" | bc)
-dt3=$(echo "$dt2-3600*$dh" | bc)
-dm=$(echo "$dt3/60" | bc)
-ds=$(echo "$dt3-60*$dm" | bc)
-
-printf "$LINE_PREFIX Total runtime: %d:%02d:%02d:%02d\\n" "$dd" "$dh" "$dm" "$ds"
-
-printf "# All fonts patched to sub-directories in \\t\\t\\t'%s'\\n" "$patched_parent_dir"
-printf "# The total number of font typefaces ever patched \\t\\t'%s'\\n" "$font_typefaces_count"
-printf "# The total number of font families patched was \\t\\t'%s'\\n" "$font_families_count"
-printf "# The total number of 'complete' patched fonts created was \\t'%s'\\n" "$complete_variation_count"
-printf "# The total number of 'variation' patched fonts created was \\t'%s'\\n" "$total_variation_count"
-printf "# The total number of patched fonts created was \\t\\t'%s'\\n" "$total_count"
-
-if [ "$total_count" -lt 1 ]; then
-  # Probably unwanted... alert user
-  exit 10
-fi
