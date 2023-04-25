@@ -350,6 +350,8 @@ function copy_license {
   local src=$1
   local dest=$2
   local license_file=""
+  echo "function copy_license '$src' '$dest'"
+  return
 
   while IFS= read -d $'\0' -r license_file ; do
     # cp "$license_file" "$dest" # makes archiving multiple harder when we junk the paths for the archive
@@ -365,6 +367,9 @@ function generate_readme {
   local generate_combinations=$2
   local combinations_filename="$patched_font_dir/readme.md"
   local font_info="$patched_font_dir/font-info.md"
+
+  echo "function generate_readme '$patched_font_dir' '$generate_combinations'"
+  return
 
   # clear output file (needed for multiple runs or updates):
   true > "$combinations_filename"
